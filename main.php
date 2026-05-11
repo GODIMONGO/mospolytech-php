@@ -15,7 +15,7 @@ function parseEquation(string $equation): array {
 
     // Проверяем наличие знака '='
     if (!str_contains($equation, '=')) {
-        throw new ЫInvalidArgumentException("Уравнение должно содержать знак '='");
+        throw new InvalidArgumentException("Уравнение должно содержать знак '='");
     }
 
     // Разбиваем на левую и правую части
