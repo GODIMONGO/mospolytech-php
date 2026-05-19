@@ -46,3 +46,24 @@ const counterObserver = new IntersectionObserver((entries) => {
     });
 }, { threshold: 0.5 });
 counters.forEach(el => counterObserver.observe(el));
+
+// Живой поиск по темам форума (фильтрация без перезагрузки)
+const search = document.getElementById('topicSearch');
+if (search) {
+    search.addEventListener('input', () => {
+        const q = search.value.trim().toLowerCase();
+        let anyVisible = false;
+        document.querySelectorAll('.cat-block').forEach(block => {
+            let blockHas = false;
+            block.querySelectorAll('.topic-row').forEach(row => {
+                const match = row.dataset.title.includes(q);
+                row.style.display = match ? '' : 'none';
+                if (match) blockHas = true;
+            });
+            block.style.display = blockHas ? '' : 'none';
+            if (blockHas) anyVisible = true;
+        });
+        const nores = document.getElementById('noResults');
+        if (nores) nores.style.display = anyVisible ? 'none' : 'block';
+    });
+}

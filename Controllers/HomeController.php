@@ -1,13 +1,8 @@
 <?php
 /**
  * Контроллер главной страницы и калькулятора.
- *
- * Отвечает за две страницы сайта:
- *   - "/"           — главная: hero-блок и три последние статьи.
- *   - "/calculator" — онлайн-калькулятор математических выражений.
- *
- * Контроллер сознательно делается тонким: вся бизнес-логика
- * (например, вычисление выражения) вынесена в отдельный класс Calculator.
+ *   - index()      — лендинг форума: hero, статистика, категории, свежие темы.
+ *   - calculator() — онлайн-калькулятор математических выражений.
  */
 
 namespace Controllers;
@@ -17,47 +12,44 @@ use Calculator;
 
 class HomeController
 {
-    /**
-     * GET / — главная страница сайта.
-     * Тянет из БД три самые свежие статьи и передаёт в шаблон.
-     */
+    /** GET / — главная страница форума. */
     public function index(): void
     {
         $db = Database::getConnection();
 
-        // JOIN с users, чтобы сразу получить никнейм автора и не
-        // делать второй запрос в цикле в шаблоне (проблема "N+1").
-        $stmt = $db->query('
-            SELECT articles.*, users.nickname AS author_nickname
+        // Свежие темы с автором и числом ответов.
+        $latest = $db->query('
+            SELECT articles.*, users.nickname AS author_nickname,
+                   (SELECT COUNT(*) FROM comments WHERE comments.article_id = articles.id) AS reply_count
             FROM articles
             JOIN users ON users.id = articles.user_id
             ORDER BY articles.created_at DESC
-            LIMIT 3
-        ');
-        $articles = $stmt->fetchAll();
+            LIMIT 6
+        ')->fetchAll();
 
-        // Счётчики для блока статистики на главной
+        // Категории с количеством тем — для карточек разделов.
+        $categories = $db->query('
+            SELECT category, COUNT(*) AS cnt,
+                   SUM(views) AS views
+            FROM articles GROUP BY category ORDER BY cnt DESC
+        ')->fetchAll();
+
         $stats = [
             'articles' => (int) $db->query('SELECT COUNT(*) FROM articles')->fetchColumn(),
             'comments' => (int) $db->query('SELECT COUNT(*) FROM comments')->fetchColumn(),
             'users'    => (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn(),
+            'views'    => (int) $db->query('SELECT COALESCE(SUM(views),0) FROM articles')->fetchColumn(),
         ];
 
         render('home/index', [
-            'title'    => 'DevHub — IT-блог о веб-разработке',
-            'articles' => $articles,
-            'stats'    => $stats,
+            'title'      => 'DevHub — IT-форум сообщества',
+            'latest'     => $latest,
+            'categories' => $categories,
+            'stats'      => $stats,
         ]);
     }
 
-    /**
-     * GET  /calculator — отрисовать форму калькулятора.
-     * POST /calculator — вычислить выражение и показать результат.
-     *
-     * Парсингом и вычислением занимается класс Calculator — здесь
-     * только обработка HTTP-уровня (получить POST, поймать исключение,
-     * отдать в шаблон).
-     */
+    /** GET/POST /calculator — калькулятор. Логика разбора — в классе Calculator. */
     public function calculator(): void
     {
         $expression = '';
@@ -67,12 +59,8 @@ class HomeController
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $expression = trim($_POST['expression'] ?? '');
             try {
-                // Создаём калькулятор и просим вычислить выражение.
                 $result = (new Calculator())->evaluate($expression);
             } catch (\Throwable $e) {
-                // Любая ошибка парсинга (деление на ноль, неверный
-                // символ и т.д.) попадает сюда — показываем её
-                // пользователю вместо результата.
                 $error = $e->getMessage();
             }
         }

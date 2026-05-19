@@ -1,15 +1,10 @@
 <?php
 /**
- * Контроллер раздела "Статьи".
+ * Контроллер раздела "Темы" форума.
  *
- * Обрабатывает все операции со статьями:
- *   - index() — список всех статей.
- *   - show()  — карточка одной статьи с автором и комментариями.
- *   - edit()  — форма редактирования (GET) и сохранение изменений (POST).
- *
- * Контроллер работает напрямую с БД через PDO, потому что выделять
- * отдельный слой моделей для учебного проекта избыточно. Для боевого
- * проекта стоило бы вынести SQL в классы-модели (например, ArticleRepository).
+ *   - index() — список тем, сгруппированный по категориям (вид форума).
+ *   - show()  — страница темы с автором, просмотрами и ответами.
+ *   - edit()  — форма редактирования темы (GET) и сохранение (POST).
  */
 
 namespace Controllers;
@@ -19,62 +14,67 @@ use Database;
 class ArticlesController
 {
     /**
-     * GET /articles — список всех статей в обратном хронологическом порядке.
+     * GET /articles — все темы форума, сгруппированные по категориям.
+     * Для каждой темы подтягиваем автора и количество ответов.
      */
     public function index(): void
     {
         $db = Database::getConnection();
 
-        // Сразу подтягиваем nickname автора через JOIN —
-        // одним запросом вместо N+1.
         $stmt = $db->query('
-            SELECT articles.*, users.nickname AS author_nickname
+            SELECT articles.*,
+                   users.nickname AS author_nickname,
+                   users.role     AS author_role,
+                   (SELECT COUNT(*) FROM comments WHERE comments.article_id = articles.id) AS reply_count
             FROM articles
             JOIN users ON users.id = articles.user_id
-            ORDER BY articles.created_at DESC
+            ORDER BY articles.category ASC, articles.created_at DESC
         ');
-        $articles = $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+
+        // Группируем темы по категориям для форумного вида.
+        $categories = [];
+        foreach ($rows as $row) {
+            $categories[$row['category']][] = $row;
+        }
 
         render('articles/index', [
-            'title'    => 'Статьи',
-            'articles' => $articles,
+            'title'      => 'Форум — все темы',
+            'categories' => $categories,
+            'sidebar'    => $this->sidebarData($db),
         ]);
     }
 
     /**
-     * GET /articles/{id} — страница одной статьи.
-     *
-     * Делает три отдельных запроса:
-     *   1. Сама статья по id.
-     *   2. Автор статьи (для блока "Автор:").
-     *   3. Все комментарии к статье (вместе с никами их авторов).
+     * GET /articles/{id} — страница одной темы.
+     * При каждом просмотре увеличиваем счётчик views.
      */
     public function show(int $id): void
     {
         $db = Database::getConnection();
 
-        // --- Запрос 1: статья ---
-        // prepare + execute — защита от SQL-инъекций: значение $id
-        // подставится как параметр, а не склеится со строкой запроса.
+        // Инкремент просмотров.
+        $db->prepare('UPDATE articles SET views = views + 1 WHERE id = ?')->execute([$id]);
+
+        // Запрос 1: тема.
         $stmt = $db->prepare('SELECT * FROM articles WHERE id = ?');
         $stmt->execute([$id]);
         $article = $stmt->fetch();
 
-        // Если статьи с таким id нет — отдаём 404 и выходим.
         if (!$article) {
             http_response_code(404);
-            echo '404 — статья не найдена';
+            echo '404 — тема не найдена';
             return;
         }
 
-        // --- Запрос 2: автор статьи ---
+        // Запрос 2: автор темы.
         $stmt = $db->prepare('SELECT * FROM users WHERE id = ?');
         $stmt->execute([$article['user_id']]);
         $author = $stmt->fetch();
 
-        // --- Запрос 3: комментарии к статье + ники их авторов ---
+        // Запрос 3: ответы (комментарии) + их авторы.
         $stmt = $db->prepare('
-            SELECT comments.*, users.nickname AS author_nickname
+            SELECT comments.*, users.nickname AS author_nickname, users.role AS author_role
             FROM comments
             JOIN users ON users.id = comments.user_id
             WHERE comments.article_id = ?
@@ -88,52 +88,73 @@ class ArticlesController
             'article'  => $article,
             'author'   => $author,
             'comments' => $comments,
+            'sidebar'  => $this->sidebarData($db),
         ]);
     }
 
     /**
-     * GET  /articles/{id}/edit — показать форму с текущими данными статьи.
-     * POST /articles/{id}/edit — сохранить новые значения и редиректнуть
-     *                            на страницу статьи.
+     * GET/POST /articles/{id}/edit — редактирование темы.
      */
     public function edit(int $id): void
     {
         $db = Database::getConnection();
 
-        // Сначала проверяем, что такая статья вообще есть.
         $stmt = $db->prepare('SELECT * FROM articles WHERE id = ?');
         $stmt->execute([$id]);
         $article = $stmt->fetch();
 
         if (!$article) {
             http_response_code(404);
-            echo '404 — статья не найдена';
+            echo '404 — тема не найдена';
             return;
         }
 
-        // POST — пользователь нажал "Сохранить".
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            // trim убирает случайные пробелы по краям.
-            // ?? '' — на случай, если поле вообще не пришло.
             $stmt = $db->prepare('UPDATE articles SET title = ?, text = ? WHERE id = ?');
             $stmt->execute([
                 trim($_POST['title'] ?? ''),
                 trim($_POST['text']  ?? ''),
                 $id,
             ]);
-
-            // PRG-паттерн (Post-Redirect-Get): после POST делаем редирект,
-            // чтобы обновление страницы не отправляло форму повторно.
-            // SCRIPT_NAME — путь до index.php на сервере, нужен чтобы
-            // ссылка работала и в корне, и в подпапке /Makurin/kurs/.
+            // PRG: после POST редиректим на тему.
             header('Location: ' . $_SERVER['SCRIPT_NAME'] . '/articles/' . $id);
             exit;
         }
 
-        // GET — просто показываем форму, предзаполненную текущими данными.
         render('articles/edit', [
             'title'   => 'Редактирование: ' . $article['title'],
             'article' => $article,
         ]);
+    }
+
+    /**
+     * Данные для боковой панели: общая статистика, категории,
+     * топ авторов и самые обсуждаемые темы. Используется на
+     * нескольких страницах, поэтому вынесено в отдельный метод.
+     */
+    private function sidebarData(\PDO $db): array
+    {
+        return [
+            'stats' => [
+                'articles' => (int) $db->query('SELECT COUNT(*) FROM articles')->fetchColumn(),
+                'comments' => (int) $db->query('SELECT COUNT(*) FROM comments')->fetchColumn(),
+                'users'    => (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn(),
+                'views'    => (int) $db->query('SELECT COALESCE(SUM(views),0) FROM articles')->fetchColumn(),
+            ],
+            'categories' => $db->query('
+                SELECT category, COUNT(*) AS cnt
+                FROM articles GROUP BY category ORDER BY cnt DESC
+            ')->fetchAll(),
+            'top_authors' => $db->query('
+                SELECT users.nickname, users.role, COUNT(articles.id) AS cnt
+                FROM users JOIN articles ON articles.user_id = users.id
+                GROUP BY users.id ORDER BY cnt DESC LIMIT 5
+            ')->fetchAll(),
+            'hot' => $db->query('
+                SELECT articles.id, articles.title,
+                       (SELECT COUNT(*) FROM comments WHERE comments.article_id = articles.id) AS reply_count
+                FROM articles ORDER BY reply_count DESC, views DESC LIMIT 5
+            ')->fetchAll(),
+        ];
     }
 }
