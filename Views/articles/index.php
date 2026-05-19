@@ -1,23 +1,24 @@
 <?php /**
- * Список всех статей. Принимает массив $articles от ArticlesController::index().
- * Каждый элемент содержит id, title, text, created_at и author_nickname.
+ * Список всех статей. Принимает $articles от ArticlesController::index().
  */ ?>
 
-<h1>Статьи</h1>
+<div class="section-header reveal visible">
+    <h2>Все статьи</h2>
+    <p>Полный архив публикаций блога</p>
+</div>
 
 <div class="articles-grid">
     <?php foreach ($articles as $article): ?>
-    <div class="card">
+    <div class="card reveal">
         <h2><a href="<?= $_SERVER['SCRIPT_NAME'] ?>/articles/<?= $article['id'] ?>">
             <?= htmlspecialchars($article['title']) ?>
         </a></h2>
-        <?php /* Анонс: первые 150 символов текста статьи */ ?>
-        <p><?= htmlspecialchars(mb_substr($article['text'], 0, 150)) ?>…</p>
+        <p><?= htmlspecialchars(mb_substr($article['text'], 0, 160)) ?>…</p>
         <div class="card-meta">
-            <small>Автор: <b><?= htmlspecialchars($article['author_nickname']) ?></b></small>
-            <small><?= $article['created_at'] ?></small>
+            <span>Автор: <b><?= htmlspecialchars($article['author_nickname']) ?></b></span>
+            <span><?= $article['created_at'] ?></span>
         </div>
-        <a href="<?= $_SERVER['SCRIPT_NAME'] ?>/articles/<?= $article['id'] ?>" class="btn">Читать</a>
+        <a href="<?= $_SERVER['SCRIPT_NAME'] ?>/articles/<?= $article['id'] ?>" class="btn">Читать →</a>
     </div>
     <?php endforeach; ?>
 </div>

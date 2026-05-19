@@ -36,9 +36,17 @@ class HomeController
         ');
         $articles = $stmt->fetchAll();
 
+        // Счётчики для блока статистики на главной
+        $stats = [
+            'articles' => (int) $db->query('SELECT COUNT(*) FROM articles')->fetchColumn(),
+            'comments' => (int) $db->query('SELECT COUNT(*) FROM comments')->fetchColumn(),
+            'users'    => (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn(),
+        ];
+
         render('home/index', [
-            'title'    => 'IT-блог — Главная',
+            'title'    => 'DevHub — IT-блог о веб-разработке',
             'articles' => $articles,
+            'stats'    => $stats,
         ]);
     }
 
