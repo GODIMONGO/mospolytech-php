@@ -1,12 +1,11 @@
 <?php
 
-// Автозагрузка: преобразует имя класса в путь к файлу
-// Например: MyProject\Controllers\ArticleController -> MyProject/Controllers/ArticleController.php
+// Автозагрузка классов по PSR-4: имя класса -> путь к файлу
 spl_autoload_register(function (string $className) {
     require_once __DIR__ . '/' . str_replace('\\', '/', $className) . '.php';
 });
 
-// Рендерит шаблон $view, передавая переменные. $title по умолчанию — "Мой блог"
+// Рендерит шаблон через layout.php
 function render(string $view, array $vars = []): void
 {
     extract($vars);
@@ -16,28 +15,30 @@ function render(string $view, array $vars = []): void
     include __DIR__ . '/Views/layout.php';
 }
 
-// Получаем путь из URL, убираем базовый путь и декодируем кириллицу
+// Получаем URI, убирая базовый путь сервера (/Makurin/kurs/index.php)
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-$uri = preg_replace('~^/[^/]+/lab\d+/index\.php~', '', $uri); // убираем /Makurin/lab10/index.php
+$uri = preg_replace('~^.*?/index\.php~', '', $uri);
 $uri = trim($uri, '/');
 
-// Таблица маршрутов: регулярное выражение => [Контроллер, метод]
+// Таблица маршрутов: шаблон => [Контроллер, метод]
 $routes = [
-    '~^hello/(.+)$~'                => [\Controllers\HomeController::class,    'sayHello'],
-    '~^bye/(.+)$~'                  => [\Controllers\HomeController::class,    'sayBye'],
-    '~^articles/(\d+)$~'            => [\Controllers\ArticlesController::class, 'show'],
-    '~^articles/(\d+)/comments$~'   => [\Controllers\CommentsController::class, 'add'],
-    '~^comments/(\d+)/edit$~'       => [\Controllers\CommentsController::class, 'edit'],
-    '~^article/(\d+)/edit$~'        => [\MyProject\Controllers\ArticleController::class, 'edit'],
+    '~^$~'                          => [\Controllers\HomeController::class,     'index'],
+    '~^calculator$~'                => [\Controllers\HomeController::class,     'calculator'],
+    '~^articles$~'                  => [\Controllers\ArticlesController::class,  'index'],
+    '~^articles/(\d+)$~'            => [\Controllers\ArticlesController::class,  'show'],
+    '~^articles/(\d+)/edit$~'       => [\Controllers\ArticlesController::class,  'edit'],
+    '~^articles/(\d+)/comments$~'   => [\Controllers\CommentsController::class,  'add'],
+    '~^comments/(\d+)/edit$~'       => [\Controllers\CommentsController::class,  'edit'],
 ];
 
-// Перебираем маршруты и вызываем нужный метод контроллера
 $matched = false;
 foreach ($routes as $pattern => $handler) {
     if (preg_match($pattern, $uri, $matches)) {
-        [$controllerClass, $method] = $handler;
-        // $matches[1] — первый захваченный параметр (id, name и т.д.)
-        (new $controllerClass())->$method($matches[1]);
+        [$class, $method] = $handler;
+        $param = $matches[1] ?? null;
+        $param !== null
+            ? (new $class())->$method((int) $param)
+            : (new $class())->$method();
         $matched = true;
         break;
     }
@@ -45,5 +46,5 @@ foreach ($routes as $pattern => $handler) {
 
 if (!$matched) {
     http_response_code(404);
-    echo '404 Not Found';
+    render('404', ['title' => '404 — Страница не найдена']);
 }

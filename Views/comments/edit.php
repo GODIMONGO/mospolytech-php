@@ -1,10 +1,8 @@
-<h1>Редактирование комментария #<?= $comment['id'] ?></h1>
+<h1>Редактирование комментария</h1>
 
-<form method="post">
-    <div>
-        <label for="text">Текст</label><br>
-        <textarea id="text" name="text" rows="6" cols="50"><?= htmlspecialchars($comment['text']) ?></textarea>
-    </div>
-
-    <button type="submit">Сохранить</button>
+<form method="post" class="edit-form">
+    <label>Текст
+        <textarea name="text" rows="6"><?= htmlspecialchars($comment['text']) ?></textarea>
+    </label>
+    <button type="submit" class="btn">Сохранить</button>
 </form>

@@ -1,15 +1,12 @@
-<h1>Редактирование статьи #<?= $article['id'] ?></h1>
+<h1>Редактирование статьи</h1>
 
-<form method="post">
-    <div>
-        <label for="title">Заголовок</label><br>
-        <input type="text" id="title" name="title" value="<?= htmlspecialchars($article['title']) ?>">
-    </div>
-
-    <div>
-        <label for="text">Текст</label><br>
-        <textarea id="text" name="text" rows="6" cols="50"><?= htmlspecialchars($article['text']) ?></textarea>
-    </div>
-
-    <button type="submit">Сохранить</button>
+<form method="post" class="edit-form">
+    <label>Заголовок
+        <input type="text" name="title" value="<?= htmlspecialchars($article['title']) ?>">
+    </label>
+    <label>Текст
+        <textarea name="text" rows="10"><?= htmlspecialchars($article['text']) ?></textarea>
+    </label>
+    <button type="submit" class="btn">Сохранить</button>
+    <a href="<?= $_SERVER['SCRIPT_NAME'] ?>/articles/<?= $article['id'] ?>" class="btn btn-outline">Отмена</a>
 </form>
