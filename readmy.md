@@ -1,0 +1,1 @@
+https://laba.frienworld.space/Makurin/lab7/index.php/bye/Дмитрий
