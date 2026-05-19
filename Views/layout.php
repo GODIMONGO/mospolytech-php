@@ -1,8 +1,15 @@
+<?php /**
+ * Общий каркас всех страниц сайта.
+ * В него подставляются переменные $title и $content, заполняемые
+ * функцией render() в index.php.
+ */ ?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <!-- htmlspecialchars защищает от XSS, если в title попадёт пользовательский ввод -->
     <title><?= htmlspecialchars($title ?? 'IT-блог') ?></title>
+    <!-- Подключаем style.css относительно корня сайта (как и index.php) -->
     <link rel="stylesheet" href="<?= $_SERVER['SCRIPT_NAME'] ?>/../style.css">
 </head>
 <body>
@@ -18,6 +25,7 @@
     </div>
 </header>
 
+<!-- Сюда render() подставит результат конкретного шаблона -->
 <main>
     <?= $content ?>
 </main>

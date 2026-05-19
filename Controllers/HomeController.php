@@ -1,4 +1,14 @@
 <?php
+/**
+ * Контроллер главной страницы и калькулятора.
+ *
+ * Отвечает за две страницы сайта:
+ *   - "/"           — главная: hero-блок и три последние статьи.
+ *   - "/calculator" — онлайн-калькулятор математических выражений.
+ *
+ * Контроллер сознательно делается тонким: вся бизнес-логика
+ * (например, вычисление выражения) вынесена в отдельный класс Calculator.
+ */
 
 namespace Controllers;
 
@@ -7,10 +17,16 @@ use Calculator;
 
 class HomeController
 {
-    // Главная страница — последние 3 статьи
+    /**
+     * GET / — главная страница сайта.
+     * Тянет из БД три самые свежие статьи и передаёт в шаблон.
+     */
     public function index(): void
     {
-        $db   = Database::getConnection();
+        $db = Database::getConnection();
+
+        // JOIN с users, чтобы сразу получить никнейм автора и не
+        // делать второй запрос в цикле в шаблоне (проблема "N+1").
         $stmt = $db->query('
             SELECT articles.*, users.nickname AS author_nickname
             FROM articles
@@ -26,7 +42,14 @@ class HomeController
         ]);
     }
 
-    // Страница калькулятора — GET показывает форму, POST вычисляет
+    /**
+     * GET  /calculator — отрисовать форму калькулятора.
+     * POST /calculator — вычислить выражение и показать результат.
+     *
+     * Парсингом и вычислением занимается класс Calculator — здесь
+     * только обработка HTTP-уровня (получить POST, поймать исключение,
+     * отдать в шаблон).
+     */
     public function calculator(): void
     {
         $expression = '';
@@ -36,8 +59,12 @@ class HomeController
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $expression = trim($_POST['expression'] ?? '');
             try {
+                // Создаём калькулятор и просим вычислить выражение.
                 $result = (new Calculator())->evaluate($expression);
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
+                // Любая ошибка парсинга (деление на ноль, неверный
+                // символ и т.д.) попадает сюда — показываем её
+                // пользователю вместо результата.
                 $error = $e->getMessage();
             }
         }

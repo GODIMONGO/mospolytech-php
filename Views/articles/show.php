@@ -1,3 +1,10 @@
+<?php /**
+ * Страница одной статьи.
+ * Получает: $article (статья), $author (автор), $comments (массив комментариев).
+ * Содержит: текст статьи, ссылку на редактирование, список комментариев
+ * и форму добавления нового комментария.
+ */ ?>
+
 <article>
     <h1><?= htmlspecialchars($article['title']) ?></h1>
     <div class="meta">
@@ -6,6 +13,7 @@
         &nbsp;·&nbsp; <a href="<?= $_SERVER['SCRIPT_NAME'] ?>/articles/<?= $article['id'] ?>/edit">Редактировать</a>
     </div>
     <div class="article-text">
+        <?php /* nl2br превращает переводы строк в <br>, чтобы абзацы не слипались */ ?>
         <p><?= nl2br(htmlspecialchars($article['text'])) ?></p>
     </div>
 </article>
@@ -17,6 +25,8 @@
         <p>Комментариев пока нет. Будьте первым!</p>
     <?php else: ?>
         <?php foreach ($comments as $comment): ?>
+        <?php /* id="commentN" нужен для якорей: после добавления комментария
+                 пользователя перебрасывает к нему через #commentN в URL */ ?>
         <div class="comment" id="comment<?= $comment['id'] ?>">
             <div class="comment-meta">
                 <b><?= htmlspecialchars($comment['author_nickname']) ?></b>
@@ -29,6 +39,7 @@
     <?php endif; ?>
 
     <h3>Добавить комментарий</h3>
+    <?php /* POST на /articles/{id}/comments — обработает CommentsController::add() */ ?>
     <form method="post"
           action="<?= $_SERVER['SCRIPT_NAME'] ?>/articles/<?= $article['id'] ?>/comments"
           class="comment-form">

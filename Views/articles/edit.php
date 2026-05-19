@@ -1,3 +1,8 @@
+<?php /**
+ * Форма редактирования статьи. Получает $article.
+ * Отправляется POST'ом на тот же URL — обработает ArticlesController::edit().
+ */ ?>
+
 <h1>Редактирование статьи</h1>
 
 <form method="post" class="edit-form">

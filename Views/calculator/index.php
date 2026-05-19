@@ -1,6 +1,16 @@
+<?php /**
+ * Страница калькулятора.
+ * Переменные:
+ *   $expression — текст из формы (для предзаполнения после POST)
+ *   $result     — строка с результатом или null
+ *   $error      — текст ошибки или null
+ * Передаются из HomeController::calculator().
+ */ ?>
+
 <h1>Калькулятор</h1>
 <p>Поддерживает: <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>^</code> <code>!</code> <code>sqrt()</code> <code>ln()</code> <code>log()</code> <code>pi</code> <code>e</code></p>
 
+<?php /* Форма отправляет POST на тот же URL — обработает HomeController::calculator() */ ?>
 <form method="post" class="calc-form">
     <input type="text"
            name="expression"
@@ -10,6 +20,7 @@
     <button type="submit">Вычислить</button>
 </form>
 
+<?php /* Показываем результат, ошибку или ничего — в зависимости от того, что вернул контроллер */ ?>
 <?php if ($result !== null): ?>
     <div class="calc-result">
         <span class="expr"><?= htmlspecialchars($expression) ?></span>
